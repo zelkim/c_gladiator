@@ -14,6 +14,7 @@
 #define GAME_STATE_RUNNING  5
 #define GAME_STATE_POSTGAME 6
 #define GAME_STATE_EXIT     7
+#define GAME_STATE_DEVMODE  8
 
 #define GAME_ACTION_ATTACK  1
 #define GAME_ACTION_BLOCK   2
@@ -29,6 +30,8 @@
 #define GAME_SPD_CONST      10
 
 #define INVALID_ITEM_ID     -1
+
+#include "dev.c"
 
 void printLine();
 int screenMainMenu();
@@ -77,6 +80,19 @@ int screenMainGame(
 
     int *totalDamageDealt,
     int *totalDamageReceived
+);
+
+int devMode(
+    int* gameState,
+    
+    char (*weaponNames)[][MAX_ITEM_STRLEN],
+    int (*weaponDamage)[MAX_WEAPONS],
+    int (*weaponSpeed)[MAX_WEAPONS],
+
+    char (*armorNames)[][MAX_ITEM_STRLEN],
+    int (*armorDefense)[MAX_WEAPONS],
+    int (*armorSpeed)[MAX_WEAPONS],
+    int (*armorHealth)[MAX_WEAPONS]
 );
 
 int getEnemyDecisionAI(
@@ -208,6 +224,20 @@ int main()
                 &totalDamageReceived
             );
         }
+        else if(gameState == GAME_STATE_DEVMODE)
+        {
+            devMode(
+                &gameState,
+                &weaponNames, 
+                &weaponDamage, 
+                &weaponSpeed,
+                &armorNames, 
+                &armorDefense, 
+                &armorSpeed, 
+                &armorHealth
+            );   
+        }
+        
         else gameState = GAME_STATE_EXIT;
     }
 
@@ -242,7 +272,12 @@ int screenMainMenu(int* gameState)
     if(input == 1) *gameState = GAME_STATE_SETUP;
     else if(input == 2) *gameState = GAME_STATE_STATS;
     else if(input == 3) *gameState = GAME_STATE_EXIT;
-    
+    else if(input == 4) 
+    {
+        system("cls");
+        printf("Gladiator [Version 0.0.1]\n(c)Sean Denzel Robenta. De La Salle University.\n");
+        *gameState = GAME_STATE_DEVMODE;
+    }
     // else...
     return 0;
 }
@@ -404,7 +439,7 @@ int screenMainGame(
     int *totalDamageReceived
 )
 {
-    // system("cls");
+    system("cls");
     printLine();
     printf("[BATTLE]\n");
     printf("  YOU: ");
@@ -501,7 +536,7 @@ int screenMainGame(
 
     *playerCharged = 0;
     *enemyCharged = 0;
-    
+
     printf("damage post-amp: %d\n", player_damage_amp);
 
     if(action == GAME_ACTION_ATTACK)
@@ -543,6 +578,99 @@ int screenMainGame(
         );
         saveStats(result, totalDamageDealt, totalDamageReceived);
     }
+    return 0;
+}
+
+int devMode(
+    int* gameState,
+    
+    char (*weaponNames)[][MAX_ITEM_STRLEN],
+    int (*weaponDamage)[MAX_WEAPONS],
+    int (*weaponSpeed)[MAX_WEAPONS],
+
+    char (*armorNames)[][MAX_ITEM_STRLEN],
+    int (*armorDefense)[MAX_WEAPONS],
+    int (*armorSpeed)[MAX_WEAPONS],
+    int (*armorHealth)[MAX_WEAPONS]
+)
+{
+    printf("\ngladev> ");
+    char input[256]; 
+    fgets(input, 256, stdin);
+
+    char cmd[64], param[4][64];
+
+    memset(cmd, 0, 64);
+    for (int i = 0; i < 4; i++) 
+        memset(param[i], 0, 64);
+
+    sscanf(input, "%s %s %s %s %s", cmd, param[0], param[1], param[2], param[3]);
+
+    if(!strcmp(cmd, "?") || !strcmp(cmd, "help"))
+    {
+        printf("?, help \t- Show list of commands.\n(w)eapon \t- Manage game weapons.\nver \t\t- Show game version.\ncls \t\t- Clear dev terminal.\nexit \t\t- Exit dev mode.\n");
+    }
+    else if(!strcmp(cmd, "w") || !strcmp(cmd, "weap") || !strcmp(cmd, "wep") || !strcmp(cmd, "weapon"))
+    {
+        if(!strcmp(param[0], "list"))
+        {
+            for(int i = 0; i < MAX_WEAPONS; i++)
+            {
+                printf("%d. %s\n", i, (*armorNames)[i]);
+            }
+            printf("USE: (w)eapon set [damage/speed] (weaponid) (amount)\n");
+        }
+        if(!strcmp(param[0], "set"))
+        {
+            if(!strcmp(param[1], "damage"))
+            {
+                int weaponid = -1, amount = -1;
+                sscanf(param[2], "%d", &weaponid);
+                sscanf(param[3], "%d", &amount);
+
+                if(weaponid == -1 || amount == -1)
+                    printf("USAGE: (w)eapon set damage (weaponid) (amount)\n");
+
+                else
+                {
+                    printf("Successfully set %s (%d) damage from %d to %d.\n", (*weaponNames)[weaponid], weaponid, (*weaponDamage)[weaponid], amount);
+                    (*weaponDamage)[weaponid] = amount;
+                }   
+            }
+            if(!strcmp(param[1], "speed"))
+            {
+                int weaponid = -1, amount = -1;
+                sscanf(param[2], "%d", &weaponid);
+                sscanf(param[3], "%d", &amount);
+
+                if(weaponid == -1 || amount == -1)
+                    printf("USAGE: (w)eapon set speed (weaponid) (amount)\n");
+
+                else
+                {
+                    printf("Successfully set %s (%d) damage from %d to %d.\n", (*weaponNames)[weaponid], weaponid, (*weaponSpeed)[weaponid], amount);
+                    (*weaponSpeed)[weaponid] = amount;
+                }
+            }
+        }
+        else 
+            printf("(w)eapon - Manage game weapons.\n\tlist - List weapons.\n\tset - Set [damage, speed] of weapon.\n");
+    }
+    else if(!strcmp(cmd, "ver"))
+    {
+        printf("Gladiator [Version 0.0.1]\n(c) Sean Denzel Robenta. De La Salle University.\n");
+    }
+    else if(!strcmp(cmd, "cls"))
+    {
+        system("cls");
+    }
+    else if(!strcmp(cmd, "exit"))
+    {
+        *gameState = GAME_STATE_MENU;
+    }
+    else
+        printf("command not found. Use 'help' or '?' for a list of commands.");
+
     return 0;
 }
 
@@ -630,7 +758,7 @@ void postGame(
     {
         print_center("[VICTORY]");
         printf("\n");
-        print_center("Good job, you got them! Keep it up, warrior.");
+         print_center("Good job, you got them! Keep it up, warrior.");
     }
 
     printf("\n\n");
@@ -639,7 +767,6 @@ void postGame(
     // printf("DMG Absorbed: \t%d | %d");
     // printf("");
     printLine();
-
 
 }
 
